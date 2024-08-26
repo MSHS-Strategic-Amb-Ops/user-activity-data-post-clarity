@@ -6,111 +6,66 @@ output: html_document
 ---
 
 ```{r setup, include=FALSE}
-```{r Load Packages, echo = FALSE, warning = FALSE, message = FALSE}
-# # Load packages -----------------------------------------------------------------------------------
-suppressMessages({
-  memory.limit(size = 8000000)
-  library(readxl)
-  library(writexl)
-  library(plyr)
-  library(dplyr)
-  library(data.table)
-  library(zoo)
-  library(shiny)
-  library(shinydashboard)
-  library(shinydashboardPlus)
-  library(shinyWidgets)
-  library(htmlwidgets)
-  library(lubridate)
-  library(tcltk)
-  library(tidyverse)
-  library(plotly)
-  library(knitr)
-  library(kableExtra)
-  library(leaflet)
-  library(grid)
-  library(gridExtra)
-  library(eeptools)
-  library(ggQC)
-  library(zipcodeR)
-  library(utils)
-  library(scales)
-  library(chron)
-  library(bupaR)
-  library(shiny)
-  library(DT)
-  library(DiagrammeR)
-  library(shinyalert)
-  library(edeaR)
-  library(processmapR)
-  library(processmonitR)
-  library(processanimateR)
-  library(tidyr)
-  library(lubridate)
-  library(RColorBrewer)
-  library(DiagrammeR)
-  library(ggplot2)
-  library(leaflet)
-  library(readr)
-  library(highcharter)
-  library(ggforce) # for 'geom_arc_bar'
-  library(packcircles) # for packed circle graph
-  library(viridis)
-  library(ggiraph)
-  library(treemapify)
-  library(treemap)
-  library(broom)
-  library(extrafont)
-  library(tis) # for US holidays
-  library(vroom)
-  library(sjmisc)
-  library(tools)
-  library(here)
-  library(shinyBS)
-  library(shinyscreenshot)
-  library(fasttime)
-  library(shinycssloaders)
-  library(feather)
-  # library(zipcodeR)
-  library(formattable)
-  library(shinyjs)
-  library(janitor)
-  library(patchwork)
-  library(flexdashboard)
-  # library(tidyverse)
-  # library(viridis)
-  # library(hrbrthemes)
-  # library(plotly)
-  # install.packages("bsts")
-  library(bsts)
-  library(reactable)
-  # install.packages("reactablefmtr")
-  library(reactablefmtr)
-  library(svDialogs)
-  # library(openxlsx)
-  library(flextable)
-  library(officedown)
-  library(officer)
-  library(magrittr)
-  library(webshot) 
-  library(png)
-  library(ggh4x)
-  library(RODBC)
-  library(DBI)
-  library(odbc)
-  library(dbplyr)
-  library(pool)
-  library(emojifont)
-  library(glue)
-  library(tidyverse)
-})
+###Load packages
+
+library(glue)
+library(odbc)
+library(tidyverse)
+library(DBI)
+library(pool)
+
+```
+
+
+
+```{r Room Assignment Value, echo = FALSE, warning = FALSE, message = FALSE}
+
+### All below tables are dependent on USER_ACTIVITY_HOUR_TABLE table which was created in the user-activity-data-clarity repo. These tables are not dependent on Clarity.
+
+## updating workstation owner based on moving workstations and their start and end dates
+### Once we have assign start and end date in the data, run this query and replace USER_ACTIVITY_HOUR_TABLE to PROD_USER_ACTIVITY_HOUR_TABLE from next chunk onwards wherever needed. No other change required.
+
+updated_workstn_owner_drop <- glue("DROP TABLE PROD_USER_ACTIVITY_HOUR_TABLE")
+updated_workstn_owner_query <- glue("CREATE TABLE PROD_USER_ACTIVITY_HOUR_TABLE AS
+                               SELECT a.CAMPUS,
+                               a.BUILDING_ADDRESS,
+                               a.FLOOR_SUITE,
+                               a.DEPARTMENT_ID,
+                               a.DEPARTMENT_NAME,
+                               a.WORKSTN_IDENTIFIER,
+                               a.LEASED_OR_OWNED,
+                               a.HOSPITAL_OR_NONHOSPITAL,
+                               a.PROV_NAME_WID,
+                               a.PROV_TYPE_SCHEDULING,
+                               a.ACTIVITY_DATE,
+                               a.ACTIVITY_HOUR,
+                               a.TURNS_PRIMARY_ROOM,
+                               a.ROOM_MINUTES,
+                               a.SESSION_TYPE,
+                               a.ROOM_ASSIGNMENT_VALUE,
+                               a.ROOM,
+                               a.ROOM_TYPE,
+                               a.VISIT_METHOD,
+                               a.VISIT_TYPE,
+                               b.WORKSTN_OWNER
+                               FROM
+                              (SELECT * FROM USER_ACTIVITY_HOUR_TABLE) a
+                               LEFT JOIN 
+                              (SELECT WORKSTN_IDENTIFIER, WORKSTN_OWNER, ASSIGN_START_DATE, ASSIGN_END_DATE FROM PROD_WORKSTATION_MAPPING) b
+                               ON a.WORKSTN_IDENTIFIER = b.WORKSTN_IDENTIFIER
+                               AND EXTRACT(MONTH FROM a.ACTIVITY_HOUR_DTTM) >= EXTRACT(MONTH FROM b.ASSIGN_START_DATE)
+                               AND EXTRACT(YEAR FROM a.ACTIVITY_HOUR_DTTM) >= EXTRACT(YEAR FROM b.ASSIGN_START_DATE)
+                               AND EXTRACT(MONTH FROM a.ACTIVITY_HOUR_DTTM) <= EXTRACT(MONTH FROM b.ASSIGN_END_DATE)
+                               AND EXTRACT(YEAR FROM a.ACTIVITY_HOUR_DTTM) <= EXTRACT(YEAR FROM b.ASSIGN_END_DATE);
+                              ")
 
 ```
 
 
 ```{r Calculate Room Minutes, echo = FALSE, warning = FALSE, message = FALSE}
 
-## Calculate Minutes in Room ----------------------
+### Calculate Minutes in Room ----------------------
+
 utilization_drop <- glue("DROP TABLE DEV_UTILIZATION_TABLE")
 utilization_query <- glue("CREATE TABLE DEV_UTILIZATION_TABLE AS
                            SELECT a.*, DENSE_RANK() OVER (PARTITION BY WORKSTN_IDENTIFIER, PAT_ENC_CSN_ID ORDER BY ACTIVITY_HOUR_DTTM) AS UNIQUE_ID,
@@ -184,11 +139,11 @@ utilization_query <- glue("CREATE TABLE DEV_UTILIZATION_TABLE AS
 ### Start and End of quarter by hour, room and encounter ID 
 active_minutes_drop <- glue("DROP TABLE DEV_ACTIVE_MINUTES")
 active_minutes_query <- glue("CREATE TABLE DEV_ACTIVE_MINUTES AS
-                            SELECT TO_CHAR(ACTIVITY_HOUR_DTTM,'YYYY-MM-DD') AS ACTIVITY_DATE, WORKSTN_IDENTIFIER, PAT_ENC_CSN_ID, 
+                            SELECT TO_DATE(ACTIVITY_HOUR_DTTM, 'YYYY-MM-DD') AS ACTIVITY_DATE, WORKSTN_IDENTIFIER, PAT_ENC_CSN_ID, 
                             MIN(QUARTER_START) AS PT_ROOM_ENTER, MAX(QUARTER_END) AS PT_ROOM_EXIT
                             FROM DEV_UTILIZATION_TABLE
                             WHERE ACTIVE_SECONDS>0
-                            GROUP BY TO_CHAR(ACTIVITY_HOUR_DTTM,'YYYY-MM-DD'), WORKSTN_IDENTIFIER, PAT_ENC_CSN_ID;
+                            GROUP BY TO_DATE(ACTIVITY_HOUR_DTTM, 'YYYY-MM-DD'), WORKSTN_IDENTIFIER, PAT_ENC_CSN_ID;
                             ")
 
 
@@ -202,8 +157,8 @@ merged_utilization_query <- glue("CREATE TABLE DEV_MERGED_UTILIZATION_TABLE AS
                                      (SELECT c.*, b.PT_ROOM_ENTER, PT_ROOM_EXIT
                                      FROM
                                      (SELECT a.*, 
-                                     TO_CHAR(ACTIVITY_HOUR_DTTM, 'YYYY-MM-DD') AS ACTIVITY_DATE, 
-                                     TO_CHAR(ACTIVITY_HOUR_DTTM, 'HH24') AS ACTIVITY_HOUR
+                                     TO_DATE(ACTIVITY_HOUR_DTTM, 'YYYY-MM-DD') AS ACTIVITY_DATE, 
+                                     TO_NUMBER(ACTIVITY_HOUR_DTTM, 'HH24') AS ACTIVITY_HOUR
                                      FROM (SELECT DISTINCT * FROM DEV_UTILIZATION_TABLE) a) c
                                      LEFT JOIN (SELECT * FROM DEV_ACTIVE_MINUTES) b
                                      ON c.ACTIVITY_DATE = b.ACTIVITY_DATE AND 
@@ -360,9 +315,10 @@ room_assignment_query <- glue("CREATE TABLE DEV_ROOM_ASSIGNMENT_TABLE AS
                               GROUP BY ACTIVITY_DATE, SESSION_TYPE, WORKSTN_IDENTIFIER;
                              ")
 
-## merging with room_utilization_table
-room_util_merged_drop <- glue("DROP TABLE ROOM_UTILIZATION_MERGED")
-room_util_merged_query <- glue("CREATE TABLE ROOM_UTILIZATION_MERGED AS
+## merging with room_utilization_table. This is the final room utilization table that is connected to Tableau.
+
+room_util_final_drop <- glue("DROP TABLE ROOM_UTILIZATION_TABLE")
+room_util_final_query <- glue("CREATE TABLE ROOM_UTILIZATION_TABLE AS
                                 SELECT a.*, b.ROOM_ASSIGNMENT_VALUE
                                 FROM
                                 (SELECT * FROM DEV_ROOM_UTILIZATION_TABLE) a
@@ -377,64 +333,20 @@ room_util_merged_query <- glue("CREATE TABLE ROOM_UTILIZATION_MERGED AS
 ```
 
 
-```{r Room Assignment Value, echo = FALSE, warning = FALSE, message = FALSE}
-
-## updating workstation owner based on moving workstations and their start and end dates
-
-updated_workstn_owner_drop <- glue("DROP TABLE PROD_ROOM_UTILIZATION_TABLE")
-updated_workstn_owner_query <- glue("CREATE TABLE PROD_ROOM_UTILIZATION_TABLE AS
-                               SELECT a.CAMPUS,
-                               a.BUILDING_ADDRESS,
-                               a.FLOOR_SUITE,
-                               a.DEPARTMENT_ID,
-                               a.DEPARTMENT_NAME,
-                               a.WORKSTN_IDENTIFIER,
-                               a.LEASED_OR_OWNED,
-                               a.HOSPITAL_OR_NONHOSPITAL,
-                               a.PROV_NAME_WID,
-                               a.PROV_TYPE_SCHEDULING,
-                               a.ACTIVITY_DATE,
-                               a.ACTIVITY_HOUR,
-                               a.TURNS_PRIMARY_ROOM,
-                               a.ROOM_MINUTES,
-                               a.SESSION_TYPE,
-                               a.ROOM_ASSIGNMENT_VALUE,
-                               a.ROOM,
-                               a.ROOM_TYPE,
-                               a.VISIT_METHOD,
-                               a.VISIT_TYPE,
-                               b.WORKSTN_OWNER
-                               FROM
-                              (SELECT * FROM ROOM_UTILIZATION_MERGED) a
-                               LEFT JOIN 
-                              (SELECT WORKSTN_IDENTIFIER, WORKSTN_OWNER, START_DATE, END_DATE FROM PROD_WORKSTATION_MAPPING) b
-                               ON a.WORKSTN_IDENTIFIER = b.WORKSTN_IDENTIFIER
-                               AND EXTRACT(MONTH FROM a.ACTIVITY_DATE) >= EXTRACT(MONTH FROM b.ASSIGN_START_DATE)
-                               AND EXTRACT(YEAR FROM a.ACTIVITY_DATE) >= EXTRACT(YEAR FROM b.ASSIGN_START_DATE)
-                               AND EXTRACT(MONTH FROM a.ACTIVITY_DATE) <= EXTRACT(MONTH FROM b.ASSIGN_END_DATE)
-                               AND EXTRACT(YEAR FROM a.ACTIVITY_DATE) <= EXTRACT(YEAR FROM b.ASSIGN_END_DATE);
-                              ")
-
-```
-
 
 ```{r Write to Oracle, echo = FALSE, warning = FALSE, message = FALSE}
 
+### This query is used to autorun all the above queries in a loop and drop and recreate the tables in Oracle. If success, it prints success, if any error it will give out the error message.
 ## Grouped Table execution
+
 tryCatch({
   conn1 <- dbConnect(drv = odbc(), "OAO Cloud DB SoYoun", timeout = 30)
   dbBegin(conn1)
-   if(dbExistsTable(conn1, "PROD_WORKSTATION_MAPPING")){
-   dbExecute(conn1, workstation_drop) 
-   }
-   if(dbExistsTable(conn1, "WORKSTATION_MAPPING_SUBSET")){
-     dbExecute(conn1, workstation_mapping_subset_drop) 
-   }
-     dbExecute(conn1, workstation_mapping_subset_query) 
-    if(dbExistsTable(conn1, "USER_ACTIVITY_HOUR_TABLE")){
-      dbExecute(conn1, user_activity_drop) 
-    }
-    dbExecute(conn1, user_activity_query)  
+
+#    if(dbExistsTable(conn1, "PROD_USER_ACTIVITY_HOUR_TABLE")){
+#     dbExecute(conn1, updated_workstn_owner_drop) 
+#   }
+#   dbExecute(conn1, updated_workstn_owner_query)
     if(dbExistsTable(conn1, "DEV_UTILIZATION_TABLE")){
      dbExecute(conn1, utilization_drop) 
     }
@@ -447,11 +359,36 @@ tryCatch({
       dbExecute(conn1, merged_utilization_drop) 
     }
     dbExecute(conn1, merged_utilization_query)   
-   if(dbExistsTable(conn1, "PROCESSED_UTILIZATION_TABLE")){
-     dbExecute(conn1, processed_utilization_drop) 
+   if(dbExistsTable(conn1, "DEV_01_PROCESSED_UTILIZATION_TABLE")){
+     dbExecute(conn1, first_processed_utilization_drop) 
    }
-   dbExecute(conn1, processed_utilization_query) 
-     
+   dbExecute(conn1, first_processed_utilization_query) 
+   if(dbExistsTable(conn1, "DEV_02_PROCESSED_UTILIZATION_TABLE")){
+     dbExecute(conn1, second_processed_utilization_drop) 
+   }
+   dbExecute(conn1, second_processed_utilization_query)
+   if(dbExistsTable(conn1, "DEV_03_PROCESSED_UTILIZATION_TABLE")){
+     dbExecute(conn1, third_processed_utilization_drop) 
+   }
+   dbExecute(conn1, third_processed_utilization_query)
+   if(dbExistsTable(conn1, "DEV_PROCESSED_UTILIZATION_TABLE")){
+     dbExecute(conn1, final_processed_utilization_drop) 
+   }
+   dbExecute(conn1, final_processed_utilization_query)
+   if(dbExistsTable(conn1, "DEV_ROOM_UTILIZATION_TABLE")){
+     dbExecute(conn1, room_utilization_drop) 
+   }
+   dbExecute(conn1, room_utilization_query)
+   if(dbExistsTable(conn1, "DEV_ROOM_ASSIGNMENT_TABLE")){
+     dbExecute(conn1, room_assignment_drop) 
+   }
+   dbExecute(conn1, room_assignment_query)
+   if(dbExistsTable(conn1, "ROOM_UTILIZATION_TABLE")){
+     dbExecute(conn1, room_util_final_drop) 
+   }
+   dbExecute(conn1, room_util_final_query)
+   
+   
   dbCommit(conn1)
   dbDisconnect(conn1)
   print("success")
