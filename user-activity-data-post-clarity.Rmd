@@ -23,11 +23,15 @@ library(pool)
 ### All below tables are dependent on USER_ACTIVITY_HOUR_TABLE table which was created in the user-activity-data-clarity repo. These tables are not dependent on Clarity.
 
 ## updating workstation owner based on moving workstations and their start and end dates
-### Once we have assign start and end date in the data, run this query and replace USER_ACTIVITY_HOUR_TABLE to PROD_USER_ACTIVITY_HOUR_TABLE from next chunk onwards wherever needed. No other change required.
+
+
+### URGENT NOTE: Update a.column names from USER_ACTIVITY_HOUR_TABLE and don't include a.WORKSTN_OWNER because WORKSTN_OWNER is coming from b and is already included.
+### Once we have assign start and end date in the data, run this query and replace USER_ACTIVITY_HOUR_TABLE to PROD_USER_ACTIVITY_HOUR_TABLE from next chunk (line 70) onwards wherever needed. No other change required.
 
 updated_workstn_owner_drop <- glue("DROP TABLE PROD_USER_ACTIVITY_HOUR_TABLE")
 updated_workstn_owner_query <- glue("CREATE TABLE PROD_USER_ACTIVITY_HOUR_TABLE AS
-                               SELECT a.CAMPUS,
+                               SELECT 
+                               a.CAMPUS,
                                a.BUILDING_ADDRESS,
                                a.FLOOR_SUITE,
                                a.DEPARTMENT_ID,
