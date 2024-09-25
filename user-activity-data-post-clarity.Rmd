@@ -18,7 +18,7 @@ library(pool)
 
 
 
-```{r Room Assignment Value, echo = FALSE, warning = FALSE, message = FALSE}
+```{r Extract User Activity based on Room Assignment, echo = FALSE, warning = FALSE, message = FALSE}
 
 ### All below tables are dependent on USER_ACTIVITY_HOUR_TABLE table which was created in the user-activity-data-clarity repo. These tables are not dependent on Clarity.
 
@@ -408,5 +408,3 @@ error = function(err){
 ```
 
 
-
-```
