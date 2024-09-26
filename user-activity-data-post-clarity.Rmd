@@ -143,7 +143,7 @@ utilization_query <- glue("CREATE TABLE DEV_UTILIZATION_TABLE AS
 ### Start and End of quarter by hour, room and encounter ID 
 active_minutes_drop <- glue("DROP TABLE DEV_ACTIVE_MINUTES")
 active_minutes_query <- glue("CREATE TABLE DEV_ACTIVE_MINUTES AS
-                            SELECT TO_DATE(to_char(ACTIVITY_HOUR_DTTM, 'YYYY-MM-DD')) AS ACTIVITY_DATE,, WORKSTN_IDENTIFIER, PAT_ENC_CSN_ID, 
+                            SELECT TO_DATE(to_char(ACTIVITY_HOUR_DTTM, 'YYYY-MM-DD')) AS ACTIVITY_DATE, WORKSTN_IDENTIFIER, PAT_ENC_CSN_ID, 
                             MIN(QUARTER_START) AS PT_ROOM_ENTER, MAX(QUARTER_END) AS PT_ROOM_EXIT
                             FROM DEV_UTILIZATION_TABLE
                             WHERE ACTIVE_SECONDS>0
