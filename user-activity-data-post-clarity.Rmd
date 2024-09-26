@@ -143,11 +143,11 @@ utilization_query <- glue("CREATE TABLE DEV_UTILIZATION_TABLE AS
 ### Start and End of quarter by hour, room and encounter ID 
 active_minutes_drop <- glue("DROP TABLE DEV_ACTIVE_MINUTES")
 active_minutes_query <- glue("CREATE TABLE DEV_ACTIVE_MINUTES AS
-                            SELECT TO_DATE(ACTIVITY_HOUR_DTTM, 'YYYY-MM-DD') AS ACTIVITY_DATE, WORKSTN_IDENTIFIER, PAT_ENC_CSN_ID, 
+                            SELECT TO_DATE(to_char(ACTIVITY_HOUR_DTTM, 'YYYY-MM-DD')) AS ACTIVITY_DATE,, WORKSTN_IDENTIFIER, PAT_ENC_CSN_ID, 
                             MIN(QUARTER_START) AS PT_ROOM_ENTER, MAX(QUARTER_END) AS PT_ROOM_EXIT
                             FROM DEV_UTILIZATION_TABLE
                             WHERE ACTIVE_SECONDS>0
-                            GROUP BY TO_DATE(ACTIVITY_HOUR_DTTM, 'YYYY-MM-DD'), WORKSTN_IDENTIFIER, PAT_ENC_CSN_ID;
+                            GROUP BY TO_DATE(to_char(ACTIVITY_HOUR_DTTM, 'YYYY-MM-DD')), WORKSTN_IDENTIFIER, PAT_ENC_CSN_ID;
                             ")
 
 
@@ -161,8 +161,8 @@ merged_utilization_query <- glue("CREATE TABLE DEV_MERGED_UTILIZATION_TABLE AS
                                      (SELECT c.*, b.PT_ROOM_ENTER, PT_ROOM_EXIT
                                      FROM
                                      (SELECT a.*, 
-                                     TO_DATE(ACTIVITY_HOUR_DTTM, 'YYYY-MM-DD') AS ACTIVITY_DATE, 
-                                     TO_NUMBER(ACTIVITY_HOUR_DTTM, 'HH24') AS ACTIVITY_HOUR
+                                     TO_DATE(to_char(ACTIVITY_HOUR_DTTM, 'YYYY-MM-DD')) AS ACTIVITY_DATE,
+                                     TO_NUMBER(to_char(ACTIVITY_HOUR_DTTM, 'HH24')) AS ACTIVITY_HOUR
                                      FROM (SELECT DISTINCT * FROM DEV_UTILIZATION_TABLE) a) c
                                      LEFT JOIN (SELECT * FROM DEV_ACTIVE_MINUTES) b
                                      ON c.ACTIVITY_DATE = b.ACTIVITY_DATE AND 
